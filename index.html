@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#0a0a0f" />
+  <meta name="description" content="RAGBLADE ARENA — ラグドール物理 × 剣戟 × オンライン友達対戦のブラウザゲーム" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <title>⚔ RAGBLADE ARENA</title>
+
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="icon" href="./assets/icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="./assets/icon.svg" />
+  <link rel="stylesheet" href="./src/ui/style.css" />
+
+  <!-- Three.js & cannon-es via CDN (with import map for clean ES modules) -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+      "cannon-es": "https://unpkg.com/cannon-es@0.20.0/dist/cannon-es.js",
+      "peerjs": "https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"
+    }
+  }
+  </script>
+</head>
+<body>
+  <!-- ========= TITLE / MAIN MENU ========= -->
+  <div id="title-screen" class="screen active">
+    <div class="title-logo">
+      <h1 class="logo-main">⚔ RAGBLADE</h1>
+      <h2 class="logo-sub">A R E N A</h2>
+      <p class="tagline">RAGDOLL · BLADE · ARENA · ONLINE</p>
+    </div>
+    <div class="title-menu">
+      <button class="btn btn-primary" data-action="solo">⚔ ソロ訓練</button>
+      <button class="btn btn-primary" data-action="local-versus">🥊 ローカル対戦 (2P)</button>
+      <button class="btn btn-primary" data-action="online-host">🌐 オンライン部屋を作る</button>
+      <button class="btn btn-primary" data-action="online-join">🔗 部屋に参加</button>
+      <button class="btn btn-secondary" data-action="settings">⚙ 設定</button>
+      <button class="btn btn-secondary" data-action="how-to-play">📖 遊びかた</button>
+    </div>
+    <p class="version">v0.1.0 · 自動セーブ · オフラインプレイ可</p>
+  </div>
+
+  <!-- ========= ONLINE LOBBY ========= -->
+  <div id="lobby-screen" class="screen">
+    <h2>🌐 オンライン対戦ロビー</h2>
+    <div id="lobby-content"></div>
+    <button class="btn btn-secondary" data-action="back-to-title">← 戻る</button>
+  </div>
+
+  <!-- ========= SETTINGS ========= -->
+  <div id="settings-screen" class="screen">
+    <h2>⚙ 設定</h2>
+    <div class="settings-list">
+      <label class="setting">
+        <span>🔊 SE 音量</span>
+        <input type="range" id="cfg-sfx" min="0" max="1" step="0.05" value="0.8" />
+      </label>
+      <label class="setting">
+        <span>🎵 BGM 音量</span>
+        <input type="range" id="cfg-bgm" min="0" max="1" step="0.05" value="0.5" />
+      </label>
+      <label class="setting">
+        <span>📳 バイブレーション</span>
+        <input type="checkbox" id="cfg-vibrate" checked />
+      </label>
+      <label class="setting">
+        <span>📺 グラフィック品質</span>
+        <select id="cfg-quality">
+          <option value="low">低 (ギガ節約)</option>
+          <option value="medium" selected>中</option>
+          <option value="high">高</option>
+        </select>
+      </label>
+      <label class="setting">
+        <span>🎯 カメラ感度</span>
+        <input type="range" id="cfg-sens" min="0.2" max="2" step="0.05" value="1" />
+      </label>
+    </div>
+    <button class="btn btn-secondary" data-action="back-to-title">← 戻る</button>
+  </div>
+
+  <!-- ========= HOW TO PLAY ========= -->
+  <div id="howto-screen" class="screen">
+    <h2>📖 遊びかた</h2>
+    <div class="howto">
+      <div class="howto-row">
+        <strong>🎯 目的</strong>
+        <p>剣でラグドール相手の急所(頭・胴体)を斬って倒せ。被弾した関節は硬直する。</p>
+      </div>
+      <div class="howto-row">
+        <strong>🖱 PC操作</strong>
+        <p>WASD で移動、マウスドラッグで剣を振る、右クリックでガード、Space でジャンプ</p>
+      </div>
+      <div class="howto-row">
+        <strong>📱 モバイル操作</strong>
+        <p>左下バーチャルスティックで移動、右画面スワイプで剣の軌道を描く</p>
+      </div>
+      <div class="howto-row">
+        <strong>⚡ 爽快のコツ</strong>
+        <p>スワイプ速度 = ダメージ。素早く長く振り抜けば一撃必殺！</p>
+      </div>
+      <div class="howto-row">
+        <strong>🔒 関節ロック</strong>
+        <p>斬られた部位は動かなくなる。両腕やられても足で蹴って勝利を掴め。</p>
+      </div>
+    </div>
+    <button class="btn btn-secondary" data-action="back-to-title">← 戻る</button>
+  </div>
+
+  <!-- ========= GAME CANVAS ========= -->
+  <div id="game-screen" class="screen">
+    <canvas id="game-canvas"></canvas>
+
+    <!-- HUD -->
+    <div id="hud">
+      <div class="hud-player hud-p1">
+        <div class="hud-name" id="hud-p1-name">PLAYER 1</div>
+        <div class="hud-hp"><div class="hud-hp-fill" id="hud-p1-hp" style="width:100%"></div></div>
+        <div class="hud-joints" id="hud-p1-joints"></div>
+      </div>
+      <div class="hud-center">
+        <div class="hud-timer" id="hud-timer">--:--</div>
+        <div class="hud-round" id="hud-round">ROUND 1</div>
+      </div>
+      <div class="hud-player hud-p2">
+        <div class="hud-name" id="hud-p2-name">PLAYER 2</div>
+        <div class="hud-hp"><div class="hud-hp-fill" id="hud-p2-hp" style="width:100%"></div></div>
+        <div class="hud-joints" id="hud-p2-joints"></div>
+      </div>
+    </div>
+
+    <!-- Mobile virtual stick -->
+    <div id="virtual-stick" class="mobile-only">
+      <div class="stick-base"><div class="stick-knob"></div></div>
+    </div>
+    <button id="virtual-guard" class="mobile-only">🛡</button>
+    <button id="virtual-jump" class="mobile-only">⤴</button>
+    <button id="pause-btn" data-action="pause">⏸</button>
+
+    <!-- Hit feedback overlay -->
+    <div id="hit-flash"></div>
+    <div id="combo-display"></div>
+  </div>
+
+  <!-- ========= PAUSE OVERLAY ========= -->
+  <div id="pause-screen" class="screen overlay">
+    <div class="pause-panel">
+      <h2>⏸ PAUSE</h2>
+      <button class="btn btn-primary" data-action="resume">▶ 再開</button>
+      <button class="btn btn-secondary" data-action="restart">🔄 リスタート</button>
+      <button class="btn btn-secondary" data-action="quit">🚪 タイトルへ</button>
+    </div>
+  </div>
+
+  <!-- ========= RESULT ========= -->
+  <div id="result-screen" class="screen overlay">
+    <div class="result-panel">
+      <h1 id="result-text">VICTORY!</h1>
+      <div id="result-stats"></div>
+      <button class="btn btn-primary" data-action="rematch">🔁 もう一戦</button>
+      <button class="btn btn-secondary" data-action="quit">🚪 タイトルへ</button>
+    </div>
+  </div>
+
+  <!-- ========= LOADING ========= -->
+  <div id="loading-screen" class="screen">
+    <div class="loader">
+      <h1>⚔ RAGBLADE</h1>
+      <div class="loader-bar"><div id="loader-fill"></div></div>
+      <p id="loader-text">ロード中...</p>
+    </div>
+  </div>
+
+  <!-- Entry point -->
+  <script type="module" src="./src/main.js"></script>
+
+  <!-- Service worker for offline play -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(() => {});
+      });
+    }
+  </script>
+</body>
+</html>

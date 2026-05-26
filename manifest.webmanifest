@@ -1,0 +1,19 @@
+{
+  "name": "RAGBLADE ARENA",
+  "short_name": "RAGBLADE",
+  "description": "ラグドール物理 × 剣戟 × オンライン友達対戦のブラウザゲーム",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#0a0a0f",
+  "theme_color": "#ff3344",
+  "icons": [
+    {
+      "src": "./assets/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
