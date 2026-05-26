@@ -3,9 +3,9 @@
 **Ragdoll Blade の上位互換ブラウザゲーム**  
 ラグドール物理 × 剣戟アクション × オンライン友達対戦
 
-[![Deploy](https://github.com/guttyanneruuuuuu/ragboll/actions/workflows/deploy.yml/badge.svg)](https://github.com/guttyanneruuuuuu/ragboll/actions/workflows/deploy.yml)
-
 🎮 **Play now → https://guttyanneruuuuuu.github.io/ragboll/**
+
+> **初回セットアップ:** リポジトリの `Settings` → `Pages` → `Source: Deploy from a branch` → `Branch: main / root` を選んで `Save` するだけ。約1分後にURLが有効化されます。
 
 ---
 
@@ -60,7 +60,7 @@ python3 -m http.server 8000
 
 ## 📦 リリース
 
-`main` ブランチに push されると GitHub Actions が自動で GitHub Pages にデプロイします。
+`main` ブランチに push するだけで GitHub Pages が自動で再デプロイします（静的サイトなのでビルド不要）。
 
 ---
 

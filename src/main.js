@@ -54,6 +54,11 @@ class App {
       const code = params.get('join').toUpperCase();
       setTimeout(() => this.lobby.join(code), 500);
     }
+    // Auto-launch for dev/testing: ?auto=solo|local-versus
+    if (params.has('auto')) {
+      const m = params.get('auto');
+      setTimeout(() => this.startGame({ mode: m }), 300);
+    }
   }
 
   bindGlobalActions() {
