@@ -34,6 +34,9 @@ class App {
     document.getElementById('cfg-vibrate').checked = this.settings.vibrate;
     document.getElementById('cfg-quality').value = this.settings.quality;
     document.getElementById('cfg-sens').value = this.settings.sensitivity;
+    document.getElementById('cfg-weapon').value = this.settings.weapon;
+    document.getElementById('cfg-arena').value = this.settings.arena;
+    document.getElementById('cfg-onehand').checked = this.settings.oneHand;
 
     // settings save
     const wire = (id, key, type='value', parse=v=>v) => {
@@ -47,6 +50,9 @@ class App {
     wire('cfg-vibrate', 'vibrate', 'checked');
     wire('cfg-quality', 'quality');
     wire('cfg-sens', 'sensitivity', 'value', parseFloat);
+    wire('cfg-weapon', 'weapon');
+    wire('cfg-arena', 'arena');
+    wire('cfg-onehand', 'oneHand', 'checked');
 
     // Auto-join from URL hash (?join=ABCD1234)
     const params = new URLSearchParams(location.search);
@@ -108,6 +114,7 @@ class App {
         onMatchEnd: (result) => this.showResult(result),
       });
       this.game.init().then(() => {
+        document.body.classList.toggle('one-hand-ui', !!this.settings.oneHand);
         setLoader(100, '開戦！');
         setTimeout(() => {
           this.screens.show('game');

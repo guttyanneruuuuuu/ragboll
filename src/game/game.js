@@ -49,23 +49,24 @@ export class Game {
 
     // ---------- scene ----------
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x0a0a14);
-    this.scene.fog = new THREE.Fog(0x0a0a14, 18, 60);
+    this.scene.background = new THREE.Color(0x87be6f);
+    this.scene.fog = new THREE.Fog(0x87be6f, 28, 95);
 
-    this.camera = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.1, 200);
-    this.camera.position.set(0, 7, 11);
+    this.camera = new THREE.PerspectiveCamera(58, innerWidth/innerHeight, 0.1, 200);
+    this.camera.position.set(-4.5, 3.1, 0);
     this.camera.lookAt(0, 1.2, 0);
+    this.camHeading = new THREE.Vector3(1, 0, 0);
 
     // ---------- lights ----------
-    this.scene.add(new THREE.AmbientLight(0x6666aa, 0.45));
+    this.scene.add(new THREE.AmbientLight(0xffffff, 0.62));
     const key = new THREE.DirectionalLight(0xffeec0, 1.1);
-    key.position.set(10, 14, 6);
+    key.position.set(8, 14, 10);
     this.scene.add(key);
-    const fill = new THREE.DirectionalLight(0xff5577, 0.5);
-    fill.position.set(-10, 5, -4);
+    const fill = new THREE.DirectionalLight(0xa4d8ff, 0.35);
+    fill.position.set(-12, 7, -6);
     this.scene.add(fill);
-    const rim = new THREE.DirectionalLight(0x33ffee, 0.35);
-    rim.position.set(0, 6, -12);
+    const rim = new THREE.DirectionalLight(0xffffff, 0.2);
+    rim.position.set(0, 8, -12);
     this.scene.add(rim);
 
     // ---------- physics ----------
@@ -85,19 +86,21 @@ export class Game {
     this.onLoadProgress(70, 'ファイター生成...');
     this.p1 = new Ragdoll({
       world: this.world, scene: this.scene,
-      position: new THREE.Vector3(-2.5, 0, 0),
-      bodyColor: 0xff4455, accentColor: 0xffcc33, name: 'P1',
+      position: new THREE.Vector3(-1.8, 0, 0),
+      bodyColor: 0xffd83a, accentColor: 0xfff6b0, name: 'P1', scale: 1.08,
     });
     this.p2 = new Ragdoll({
       world: this.world, scene: this.scene,
-      position: new THREE.Vector3( 2.5, 0, 0),
-      bodyColor: 0x33aaff, accentColor: 0x33ffee, name: 'P2',
+      position: new THREE.Vector3( 2.2, 0, -0.2),
+      bodyColor: 0xeab12a, accentColor: 0xffe794, name: 'P2', scale: 0.9,
     });
     // Make them face each other initially by tweaking yaw via tiny torque later.
 
     // ---------- swords ----------
     this.s1 = new Sword({ scene: this.scene, world: this.world, owner: 'p1', color: 0xffffff });
     this.s2 = new Sword({ scene: this.scene, world: this.world, owner: 'p2', color: 0xccffff });
+    this.s1.setPreset(this.settings.weapon);
+    this.s2.setPreset(this.settings.weapon);
 
     // ---------- audio / fx ----------
     this.audio = new AudioEngine(this.settings);
@@ -106,7 +109,10 @@ export class Game {
 
     // ---------- input ----------
     this.onLoadProgress(85, '入力設定...');
-    this.input = new InputManager(this.canvas, { sensitivity: this.settings.sensitivity });
+    this.input = new InputManager(this.canvas, {
+      sensitivity: this.settings.sensitivity,
+      oneHand: this.settings.oneHand,
+    });
 
     // P1 swing state
     this.p1Swing = new SwingState();
@@ -129,9 +135,7 @@ export class Game {
     // Floor (disk arena)
     const radius = 9;
     const floorGeo = new THREE.CylinderGeometry(radius, radius, 0.6, 64);
-    const floorMat = new THREE.MeshStandardMaterial({
-      color: 0x1c0e30, metalness: 0.35, roughness: 0.55,
-    });
+    const floorMat = new THREE.MeshStandardMaterial({ color: 0x4ea53a, metalness: 0.05, roughness: 0.95 });
     const floor = new THREE.Mesh(floorGeo, floorMat);
     floor.position.y = -0.3;
     this.scene.add(floor);
@@ -145,12 +149,12 @@ export class Game {
     floorBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1,0,0), -Math.PI/2);
     this.world.addBody(floorBody);
 
-    // Neon rings
+    // arena rings
     for (let i = 0; i < 3; i++) {
       const r = radius - 0.5 - i*0.4;
       const ringGeo = new THREE.TorusGeometry(r, 0.05, 6, 96);
       const ringMat = new THREE.MeshBasicMaterial({
-        color: i === 0 ? 0xff3344 : i === 1 ? 0xffcc33 : 0x33ffee,
+        color: i === 0 ? 0xffffff : i === 1 ? 0xfff5b2 : 0xc8ffd3,
         transparent: true,
         opacity: 0.55 - i*0.1,
       });
@@ -163,18 +167,34 @@ export class Game {
     // Ring-out wall (invisible cylinder so fighters fall off if pushed too far)
     // We skip — the arena is a disk over the floor with sloped edge handled by gameplay (out-of-bounds check).
 
-    // Bg deco — distant pillars
+    // Bg deco — distant mountain-like cones
     for (let i = 0; i < 8; i++) {
       const ang = i / 8 * Math.PI * 2;
       const px = Math.cos(ang) * 20;
       const pz = Math.sin(ang) * 20;
-      const ph = 6 + Math.random() * 4;
-      const g = new THREE.BoxGeometry(0.5, ph, 0.5);
-      const m = new THREE.MeshStandardMaterial({ color: 0x0e0822, emissive: 0x220033, emissiveIntensity: 0.4 });
+      const ph = 8 + Math.random() * 5;
+      const g = new THREE.ConeGeometry(1.8 + Math.random() * 2.2, ph, 7);
+      const m = new THREE.MeshStandardMaterial({ color: 0x547a46, roughness: 1.0, metalness: 0.0 });
       const mesh = new THREE.Mesh(g, m);
       mesh.position.set(px, ph/2 - 0.5, pz);
       this.scene.add(mesh);
     }
+
+    // Optional stage gimmicks
+    this.hazardBlades = [];
+    if (this.settings.arena === 'hazard') {
+      this._spawnHazardBlade(0, 0, 3.5, 1.5);
+      this._spawnHazardBlade(0, 0, -3.5, -1.8);
+    }
+  }
+
+  _spawnHazardBlade(x, y, z, spin) {
+    const g = new THREE.BoxGeometry(3.2, 0.1, 0.35);
+    const m = new THREE.MeshStandardMaterial({ color: 0xff2233, emissive: 0x550000, metalness: 0.8, roughness: 0.25 });
+    const blade = new THREE.Mesh(g, m);
+    blade.position.set(x, y + 0.25, z);
+    this.scene.add(blade);
+    this.hazardBlades.push({ mesh: blade, spin });
   }
 
   _wireNetwork() {
@@ -527,7 +547,8 @@ export class Game {
     const checkOut = (rag, who) => {
       const p = rag.bodies.pelvis.position;
       const dist = Math.hypot(p.x, p.z);
-      if (dist > 9.2 || p.y < -3) {
+      const ringRadius = this.settings.arena === 'ringout' ? 7.4 : 9.2;
+      if (dist > ringRadius || p.y < -3) {
         if (rag.alive) {
           rag.alive = false;
           rag.hp = 0;
@@ -543,6 +564,26 @@ export class Game {
     };
     checkOut(this.p1, 1);
     checkOut(this.p2, 2);
+    this._updateHazards(dt);
+  }
+
+  _updateHazards(dt) {
+    if (!this.hazardBlades?.length || this._ended) return;
+    for (const hz of this.hazardBlades) {
+      hz.mesh.rotation.y += hz.spin * dt;
+      for (const [rag, who] of [[this.p1, 1], [this.p2, 2]]) {
+        if (!rag.alive) continue;
+        const p = rag.bodies.pelvis.position;
+        const d = Math.hypot(p.x - hz.mesh.position.x, p.z - hz.mesh.position.z);
+        if (d < 1.35 && p.y < 1.9) {
+          this._applyHit(who === 1 ? 2 : 1, {
+            target: rag, partName: 'spine', damage: 30,
+            point: new THREE.Vector3(p.x, p.y, p.z),
+            dir: new THREE.Vector3(0, 1, 0),
+          });
+        }
+      }
+    }
   }
 
   _updateMatchTimer(now) {
@@ -564,16 +605,23 @@ export class Game {
   }
 
   _updateCamera(dt) {
-    // mid-point follow
-    const a = new THREE.Vector3(), b = new THREE.Vector3();
-    this.p1.centerPosition(a); this.p2.centerPosition(b);
-    const mid = a.clone().add(b).multiplyScalar(0.5);
-    const dist = a.distanceTo(b);
-    const target = new THREE.Vector3(mid.x * 0.4, mid.y + 3.5, Math.max(8, dist * 1.6) + 4);
-    this.fx._cameraBase.lerp(target, Math.min(1, dt * 2.5));
-    // when not shaking, keep camera at base
+    // Fixed 3rd-person chase camera (behind own character), no free look.
+    const me = this.mode === 'online-joiner' ? this.p2 : this.p1;
+    const foe = this.mode === 'online-joiner' ? this.p1 : this.p2;
+    const pelvis = me.bodies.pelvis.position;
+    const foePelvis = foe.bodies.pelvis.position;
+    const faceToFoe = new THREE.Vector3(foePelvis.x - pelvis.x, 0, foePelvis.z - pelvis.z).normalize();
+    const move = this.input?.move || { x: 0, y: 0 };
+    const moveDir = new THREE.Vector3(move.x, 0, move.y);
+    if (moveDir.lengthSq() > 0.01) this.camHeading.lerp(moveDir.normalize(), Math.min(1, dt * 8));
+    else if (faceToFoe.lengthSq() > 0.01) this.camHeading.lerp(faceToFoe, Math.min(1, dt * 2.2));
+
+    const eye = new THREE.Vector3(pelvis.x, pelvis.y + 1.5, pelvis.z);
+    const back = this.camHeading.clone().normalize().multiplyScalar(-4.2);
+    const camTargetPos = eye.clone().add(back).add(new THREE.Vector3(0, 1.9, 0));
+    this.fx._cameraBase.lerp(camTargetPos, Math.min(1, dt * 7));
     if (this.fx.shake.time <= 0) this.camera.position.copy(this.fx._cameraBase);
-    this.camera.lookAt(mid.x, 1.0, mid.z);
+    this.camera.lookAt(eye.x + this.camHeading.x * 2.4, eye.y + 0.1, eye.z + this.camHeading.z * 2.4);
   }
 
   _render() {

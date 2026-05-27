@@ -44,6 +44,7 @@ export class Ragdoll {
     this.bodyColor = opts.bodyColor ?? 0xff6677;
     this.accentColor = opts.accentColor ?? 0xffcc33;
     this.position = opts.position || new THREE.Vector3();
+    this.scale = opts.scale ?? 1.0;
 
     this.bodies = {};       // name -> CANNON.Body
     this.meshes = {};       // name -> THREE.Mesh
@@ -109,47 +110,48 @@ export class Ragdoll {
     const ac = this.accentColor;
 
     // ---- HEAD ----
-    const headRadius = 0.22;
+    const s = this.scale;
+    const headRadius = 0.22 * s;
     this._addPart('head', new CANNON.Sphere(headRadius), headRadius,
-      new THREE.Vector3(p.x, p.y + 1.95, p.z), 1.5, ac);
+      new THREE.Vector3(p.x, p.y + 1.95 * s, p.z), 1.5 * s, ac);
 
     // ---- CHEST ----
-    const chestHE = new CANNON.Vec3(0.30, 0.30, 0.18);
+    const chestHE = new CANNON.Vec3(0.30 * s, 0.30 * s, 0.18 * s);
     this._addPart('chest', new CANNON.Box(chestHE), chestHE,
-      new THREE.Vector3(p.x, p.y + 1.50, p.z), 6.0, bc);
+      new THREE.Vector3(p.x, p.y + 1.50 * s, p.z), 6.0 * s, bc);
 
     // ---- PELVIS ----
-    const pelvHE = new CANNON.Vec3(0.27, 0.18, 0.16);
+    const pelvHE = new CANNON.Vec3(0.27 * s, 0.18 * s, 0.16 * s);
     this._addPart('pelvis', new CANNON.Box(pelvHE), pelvHE,
-      new THREE.Vector3(p.x, p.y + 1.00, p.z), 4.0, bc);
+      new THREE.Vector3(p.x, p.y + 1.00 * s, p.z), 4.0 * s, bc);
 
     // ---- Arms (cylinder via Box for stability) ----
-    const upperArmHE = new CANNON.Vec3(0.09, 0.22, 0.09);
-    const lowerArmHE = new CANNON.Vec3(0.08, 0.20, 0.08);
+    const upperArmHE = new CANNON.Vec3(0.09 * s, 0.22 * s, 0.09 * s);
+    const lowerArmHE = new CANNON.Vec3(0.08 * s, 0.20 * s, 0.08 * s);
 
     this._addPart('lUpperArm', new CANNON.Box(upperArmHE), upperArmHE,
-      new THREE.Vector3(p.x - 0.45, p.y + 1.55, p.z), 1.5, bc);
+      new THREE.Vector3(p.x - 0.45 * s, p.y + 1.55 * s, p.z), 1.5 * s, bc);
     this._addPart('lLowerArm', new CANNON.Box(lowerArmHE), lowerArmHE,
-      new THREE.Vector3(p.x - 0.45, p.y + 1.10, p.z), 1.0, bc);
+      new THREE.Vector3(p.x - 0.45 * s, p.y + 1.10 * s, p.z), 1.0 * s, bc);
 
     this._addPart('rUpperArm', new CANNON.Box(upperArmHE), upperArmHE,
-      new THREE.Vector3(p.x + 0.45, p.y + 1.55, p.z), 1.5, bc);
+      new THREE.Vector3(p.x + 0.45 * s, p.y + 1.55 * s, p.z), 1.5 * s, bc);
     this._addPart('rLowerArm', new CANNON.Box(lowerArmHE), lowerArmHE,
-      new THREE.Vector3(p.x + 0.45, p.y + 1.10, p.z), 1.0, bc);
+      new THREE.Vector3(p.x + 0.45 * s, p.y + 1.10 * s, p.z), 1.0 * s, bc);
 
     // ---- Legs ----
-    const thighHE = new CANNON.Vec3(0.10, 0.28, 0.10);
-    const shinHE  = new CANNON.Vec3(0.09, 0.26, 0.09);
+    const thighHE = new CANNON.Vec3(0.10 * s, 0.28 * s, 0.10 * s);
+    const shinHE  = new CANNON.Vec3(0.09 * s, 0.26 * s, 0.09 * s);
 
     this._addPart('lThigh', new CANNON.Box(thighHE), thighHE,
-      new THREE.Vector3(p.x - 0.15, p.y + 0.55, p.z), 2.5, bc);
+      new THREE.Vector3(p.x - 0.15 * s, p.y + 0.55 * s, p.z), 2.5 * s, bc);
     this._addPart('lShin', new CANNON.Box(shinHE), shinHE,
-      new THREE.Vector3(p.x - 0.15, p.y + 0.05, p.z), 1.8, bc);
+      new THREE.Vector3(p.x - 0.15 * s, p.y + 0.05 * s, p.z), 1.8 * s, bc);
 
     this._addPart('rThigh', new CANNON.Box(thighHE), thighHE,
-      new THREE.Vector3(p.x + 0.15, p.y + 0.55, p.z), 2.5, bc);
+      new THREE.Vector3(p.x + 0.15 * s, p.y + 0.55 * s, p.z), 2.5 * s, bc);
     this._addPart('rShin', new CANNON.Box(shinHE), shinHE,
-      new THREE.Vector3(p.x + 0.15, p.y + 0.05, p.z), 1.8, bc);
+      new THREE.Vector3(p.x + 0.15 * s, p.y + 0.05 * s, p.z), 1.8 * s, bc);
 
     // ---- Constraints ----
     const Vec = (x, y, z) => new CANNON.Vec3(x, y, z);
