@@ -98,6 +98,8 @@ export class Game {
     // ---------- swords ----------
     this.s1 = new Sword({ scene: this.scene, world: this.world, owner: 'p1', color: 0xffffff });
     this.s2 = new Sword({ scene: this.scene, world: this.world, owner: 'p2', color: 0xccffff });
+    this.s1.setPreset(this.settings.weapon);
+    this.s2.setPreset(this.settings.weapon);
 
     // ---------- audio / fx ----------
     this.audio = new AudioEngine(this.settings);
@@ -175,6 +177,22 @@ export class Game {
       mesh.position.set(px, ph/2 - 0.5, pz);
       this.scene.add(mesh);
     }
+
+    // Optional stage gimmicks
+    this.hazardBlades = [];
+    if (this.settings.arena === 'hazard') {
+      this._spawnHazardBlade(0, 0, 3.5, 1.5);
+      this._spawnHazardBlade(0, 0, -3.5, -1.8);
+    }
+  }
+
+  _spawnHazardBlade(x, y, z, spin) {
+    const g = new THREE.BoxGeometry(3.2, 0.1, 0.35);
+    const m = new THREE.MeshStandardMaterial({ color: 0xff2233, emissive: 0x550000, metalness: 0.8, roughness: 0.25 });
+    const blade = new THREE.Mesh(g, m);
+    blade.position.set(x, y + 0.25, z);
+    this.scene.add(blade);
+    this.hazardBlades.push({ mesh: blade, spin });
   }
 
   _wireNetwork() {
@@ -527,7 +545,8 @@ export class Game {
     const checkOut = (rag, who) => {
       const p = rag.bodies.pelvis.position;
       const dist = Math.hypot(p.x, p.z);
-      if (dist > 9.2 || p.y < -3) {
+      const ringRadius = this.settings.arena === 'ringout' ? 7.4 : 9.2;
+      if (dist > ringRadius || p.y < -3) {
         if (rag.alive) {
           rag.alive = false;
           rag.hp = 0;
@@ -543,6 +562,26 @@ export class Game {
     };
     checkOut(this.p1, 1);
     checkOut(this.p2, 2);
+    this._updateHazards(dt);
+  }
+
+  _updateHazards(dt) {
+    if (!this.hazardBlades?.length || this._ended) return;
+    for (const hz of this.hazardBlades) {
+      hz.mesh.rotation.y += hz.spin * dt;
+      for (const [rag, who] of [[this.p1, 1], [this.p2, 2]]) {
+        if (!rag.alive) continue;
+        const p = rag.bodies.pelvis.position;
+        const d = Math.hypot(p.x - hz.mesh.position.x, p.z - hz.mesh.position.z);
+        if (d < 1.35 && p.y < 1.9) {
+          this._applyHit(who === 1 ? 2 : 1, {
+            target: rag, partName: 'spine', damage: 30,
+            point: new THREE.Vector3(p.x, p.y, p.z),
+            dir: new THREE.Vector3(0, 1, 0),
+          });
+        }
+      }
+    }
   }
 
   _updateMatchTimer(now) {

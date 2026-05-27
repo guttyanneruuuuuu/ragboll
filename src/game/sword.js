@@ -36,6 +36,20 @@ export class Sword {
     this.hitCooldown = new Map(); // partName -> timestamp
   }
 
+  setPreset(name) {
+    const preset = {
+      katana: { len: 1.4, damage: 1.0, trail: 1.0 },
+      greatsword: { len: 1.7, damage: 1.3, trail: 1.2 },
+      spear: { len: 1.95, damage: 0.9, trail: 0.8 },
+    }[name] ?? { len: 1.4, damage: 1.0, trail: 1.0 };
+    this.length = preset.len;
+    this.totalLen = this.length + this.handleLen;
+    this.damageMul = preset.damage;
+    this.trailMesh.scale.setScalar(preset.trail);
+    this.mesh.children[0].scale.y = this.length / 1.4;
+    this.mesh.children[0].position.y = this.length / 2;
+  }
+
   _build() {
     const group = new THREE.Group();
     // blade

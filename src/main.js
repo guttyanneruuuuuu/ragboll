@@ -34,6 +34,8 @@ class App {
     document.getElementById('cfg-vibrate').checked = this.settings.vibrate;
     document.getElementById('cfg-quality').value = this.settings.quality;
     document.getElementById('cfg-sens').value = this.settings.sensitivity;
+    document.getElementById('cfg-weapon').value = this.settings.weapon;
+    document.getElementById('cfg-arena').value = this.settings.arena;
 
     // settings save
     const wire = (id, key, type='value', parse=v=>v) => {
@@ -47,6 +49,8 @@ class App {
     wire('cfg-vibrate', 'vibrate', 'checked');
     wire('cfg-quality', 'quality');
     wire('cfg-sens', 'sensitivity', 'value', parseFloat);
+    wire('cfg-weapon', 'weapon');
+    wire('cfg-arena', 'arena');
 
     // Auto-join from URL hash (?join=ABCD1234)
     const params = new URLSearchParams(location.search);
