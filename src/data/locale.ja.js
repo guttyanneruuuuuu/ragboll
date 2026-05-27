@@ -1,0 +1,182 @@
+// ============================================================
+// locale.ja.js — Japanese string table.
+// ============================================================
+
+import { register } from '../util/i18n.js';
+
+register('ja', {
+  // Generic
+  'app.title': 'RAGBLADE ARENA',
+  'app.tagline': 'ラグドール × 剣戟 × オンライン対戦',
+  'app.version': 'バージョン',
+  'app.loading': 'ロード中...',
+  'app.ready': 'PRESS ANY KEY TO BEGIN',
+
+  // Title menu
+  'menu.solo': '⚔ ソロ訓練',
+  'menu.localVersus': '🥊 ローカル対戦 (2P)',
+  'menu.onlineHost': '🌐 オンライン部屋を作る',
+  'menu.onlineJoin': '🔗 部屋に参加',
+  'menu.tutorial': '🎓 チュートリアル',
+  'menu.arcade': '🎮 アーケード',
+  'menu.profile': '🎭 プロフィール',
+  'menu.shop': '🛍 着せ替え',
+  'menu.settings': '⚙ 設定',
+  'menu.howToPlay': '📖 遊びかた',
+  'menu.replays': '🎥 リプレイ',
+  'menu.credits': '📜 クレジット',
+
+  // Common UI
+  'common.back': '← 戻る',
+  'common.confirm': '決定',
+  'common.cancel': 'キャンセル',
+  'common.next': '次へ →',
+  'common.previous': '← 前へ',
+  'common.start': '開始',
+  'common.continue': '続行',
+  'common.retry': 'リトライ',
+  'common.quit': '終了',
+  'common.copy': 'コピー',
+  'common.copied': 'コピー完了！',
+  'common.share': 'シェア',
+  'common.save': '保存',
+  'common.reset': 'リセット',
+  'common.delete': '削除',
+  'common.yes': 'はい',
+  'common.no': 'いいえ',
+  'common.locked': 'ロック',
+  'common.unlocked': '解放済',
+  'common.equipped': '装備中',
+
+  // Settings
+  'settings.title': '⚙ 設定',
+  'settings.audio.sfx': '🔊 SE 音量',
+  'settings.audio.bgm': '🎵 BGM 音量',
+  'settings.haptic': '📳 バイブレーション',
+  'settings.quality': '📺 グラフィック品質',
+  'settings.quality.low': '低 (ギガ節約)',
+  'settings.quality.medium': '中',
+  'settings.quality.high': '高',
+  'settings.sensitivity': '🎯 カメラ感度',
+  'settings.weapon': '🗡 武器プリセット',
+  'settings.arena': '🌋 ステージ',
+  'settings.camera': '📱 カメラ',
+  'settings.camera.portrait': '縦画面固定（推奨）',
+  'settings.camera.dynamic': 'ダイナミック追従',
+  'settings.controls': '🕹 操作プリセット',
+  'settings.controls.dualstick': 'ダブルスティック',
+  'settings.controls.oneHand': 'ワンハンド (片手)',
+  'settings.controls.gamepad': 'ゲームパッド',
+  'settings.locale': '🌐 言語',
+  'settings.bloodEffects': '🩸 血しぶき表現',
+  'settings.bloodEffects.on': 'オン',
+  'settings.bloodEffects.off': '星屑に置き換え',
+  'settings.export': '📤 設定をエクスポート',
+  'settings.import': '📥 設定をインポート',
+  'settings.reset': '⚠ 全データをリセット',
+
+  // Lobby
+  'lobby.title': '🌐 オンライン対戦ロビー',
+  'lobby.host.creating': 'ルームを作成中...',
+  'lobby.host.created': 'ルーム作成完了！下記URLを友達に渡してください',
+  'lobby.host.code': 'ルームコード',
+  'lobby.host.waiting': '参加者を待っています...',
+  'lobby.host.connected': '👥 {name} が参加しました',
+  'lobby.join.prompt': 'ルームコードを入力',
+  'lobby.join.connecting': '接続中...',
+  'lobby.join.connected': '接続完了！',
+  'lobby.join.error': '接続できませんでした。コードを確認してください。',
+  'lobby.startMatch': '⚔ 試合開始',
+  'lobby.leave': '🚪 ロビーを抜ける',
+
+  // HUD
+  'hud.round': 'ラウンド {n}',
+  'hud.victory': '勝利',
+  'hud.defeat': '敗北',
+  'hud.draw': '引き分け',
+  'hud.combo': '{n} コンボ！',
+  'hud.firstBlood': 'ファーストブラッド',
+  'hud.fatality': '🔥 FATALITY',
+  'hud.ringOut': '⚠ リングアウト',
+  'hud.hazard': '☠ 環境キル',
+  'hud.parry': '🛡 PARRY!',
+
+  // How to play
+  'howto.goal': '🎯 目的',
+  'howto.goal.text': '剣でラグドール相手の急所(頭・胴体)を斬って倒せ。被弾した関節は硬直する。',
+  'howto.pc': '🖱 PC操作',
+  'howto.pc.text': 'WASD で移動、マウスドラッグで剣を振る、右クリックでガード、Space でジャンプ',
+  'howto.mobile': '📱 モバイル操作',
+  'howto.mobile.text': '左下バーチャルスティックで移動、右画面スワイプで剣の軌道を描く',
+  'howto.juice': '⚡ 爽快のコツ',
+  'howto.juice.text': 'スワイプ速度 = ダメージ。素早く長く振り抜けば一撃必殺！',
+  'howto.joint': '🔒 関節ロック',
+  'howto.joint.text': '斬られた部位は動かなくなる。両腕やられても足で蹴って勝利を掴め。',
+
+  // Profile / shop
+  'profile.title': '🎭 プロフィール',
+  'profile.name': 'プレイヤー名',
+  'profile.rank': 'ランク',
+  'profile.elo': 'レーティング',
+  'profile.wins': '勝利数',
+  'profile.losses': '敗北数',
+  'profile.streak': '連勝',
+  'profile.playtime': 'プレイ時間',
+  'shop.title': '🛍 着せ替え',
+  'shop.bodyColor': 'ボディカラー',
+  'shop.accentColor': 'アクセントカラー',
+  'shop.trailColor': '剣の軌跡',
+  'shop.skin': 'スキン',
+  'shop.equip': '装備する',
+  'shop.preview': 'プレビュー',
+
+  // Replays
+  'replay.title': '🎥 リプレイ',
+  'replay.empty': 'まだリプレイがありません。試合をプレイしましょう！',
+  'replay.play': '▶ 再生',
+  'replay.export': '💾 エクスポート',
+  'replay.delete': '🗑 削除',
+
+  // Tutorial
+  'tutorial.title': '🎓 チュートリアル',
+  'tutorial.step1.title': 'ステップ 1: 移動',
+  'tutorial.step1.body': 'WASD またはバーチャルスティックでラグドールを動かそう。',
+  'tutorial.step2.title': 'ステップ 2: 剣を振る',
+  'tutorial.step2.body': 'マウスドラッグまたは画面スワイプで剣の軌道を直接コントロール。',
+  'tutorial.step3.title': 'ステップ 3: 関節ロック',
+  'tutorial.step3.body': '被弾すると関節が硬直する。痛みを背負って戦う粋を覚えよう。',
+  'tutorial.step4.title': 'ステップ 4: パリィ',
+  'tutorial.step4.body': '相手の斬撃に合わせてガードを出せばパリィで反撃チャンス。',
+  'tutorial.completed': 'チュートリアル完了！',
+
+  // Pause / Result
+  'pause.title': '⏸ ポーズ',
+  'pause.resume': '▶ 再開',
+  'pause.restart': '🔄 リスタート',
+  'pause.quit': '🚪 タイトルへ',
+  'result.victory': 'VICTORY!',
+  'result.defeat': 'DEFEAT...',
+  'result.draw': 'DRAW',
+  'result.rematch': '🔁 もう一戦',
+  'result.share': '📣 結果をシェア',
+
+  // Toasts
+  'toast.connecting': '接続しています...',
+  'toast.connected': '接続完了',
+  'toast.disconnected': '接続が切断されました',
+  'toast.urlCopied': '招待URLをコピーしました',
+  'toast.saved': '保存しました',
+  'toast.error': 'エラー: {message}',
+
+  // Game modes
+  'mode.solo': 'ソロ訓練',
+  'mode.localVersus': 'ローカル対戦',
+  'mode.online': 'オンライン対戦',
+  'mode.battleRoyale': 'バトルロイヤル',
+  'mode.team': 'チーム対戦',
+  'mode.survival': 'サバイバル',
+  'mode.tutorial': 'チュートリアル',
+
+  // Achievements
+  'achievement.unlocked': '🏆 実績解除：{name}',
+});
