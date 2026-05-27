@@ -95,7 +95,19 @@
           <option value="arena" selected>ネオンアリーナ</option>
           <option value="ringout">リングアウト</option>
           <option value="hazard">回転刃ハザード</option>
+          <option value="meadow">草原バレー（固定カメラ）</option>
         </select>
+      </label>
+      <label class="setting">
+        <span>📱 カメラ</span>
+        <select id="cfg-camera">
+          <option value="portrait" selected>縦画面固定（推奨）</option>
+          <option value="dynamic">ダイナミック追従</option>
+        </select>
+      </label>
+      <label class="setting" style="align-items:flex-start;flex-direction:column;gap:8px">
+        <span>🃏 ビルドカード（最大5枚）</span>
+        <div id="card-loadout" class="card-loadout"></div>
       </label>
     </div>
     <button class="btn btn-secondary" data-action="back-to-title">← 戻る</button>
@@ -115,7 +127,7 @@
       </div>
       <div class="howto-row">
         <strong>📱 モバイル操作</strong>
-        <p>左下バーチャルスティックで移動、右画面スワイプで剣の軌道を描く</p>
+        <p>縦画面では片手ドラッグで「移動＋剣振り」を同時操作。横画面は左スティック移動＋右スワイプ剣操作</p>
       </div>
       <div class="howto-row">
         <strong>⚡ 爽快のコツ</strong>
@@ -125,6 +137,10 @@
         <strong>🔒 関節ロック</strong>
         <p>斬られた部位は動かなくなる。両腕やられても足で蹴って勝利を掴め。</p>
       </div>
+      <label class="setting" style="align-items:flex-start;flex-direction:column;gap:8px">
+        <span>🃏 ビルドカード（最大5枚）</span>
+        <div id="card-loadout" class="card-loadout"></div>
+      </label>
     </div>
     <button class="btn btn-secondary" data-action="back-to-title">← 戻る</button>
   </div>

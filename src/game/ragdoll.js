@@ -109,47 +109,48 @@ export class Ragdoll {
     const ac = this.accentColor;
 
     // ---- HEAD ----
-    const headRadius = 0.22;
+    const scale = 1.35;
+    const headRadius = 0.26 * scale;
     this._addPart('head', new CANNON.Sphere(headRadius), headRadius,
-      new THREE.Vector3(p.x, p.y + 1.95, p.z), 1.5, ac);
+      new THREE.Vector3(p.x, p.y + 2.55 * scale, p.z), 1.5, ac);
 
     // ---- CHEST ----
-    const chestHE = new CANNON.Vec3(0.30, 0.30, 0.18);
+    const chestHE = new CANNON.Vec3(0.38 * scale, 0.42 * scale, 0.24 * scale);
     this._addPart('chest', new CANNON.Box(chestHE), chestHE,
-      new THREE.Vector3(p.x, p.y + 1.50, p.z), 6.0, bc);
+      new THREE.Vector3(p.x, p.y + 1.95 * scale, p.z), 6.0, bc);
 
     // ---- PELVIS ----
-    const pelvHE = new CANNON.Vec3(0.27, 0.18, 0.16);
+    const pelvHE = new CANNON.Vec3(0.34 * scale, 0.24 * scale, 0.22 * scale);
     this._addPart('pelvis', new CANNON.Box(pelvHE), pelvHE,
-      new THREE.Vector3(p.x, p.y + 1.00, p.z), 4.0, bc);
+      new THREE.Vector3(p.x, p.y + 1.25 * scale, p.z), 4.0, bc);
 
     // ---- Arms (cylinder via Box for stability) ----
-    const upperArmHE = new CANNON.Vec3(0.09, 0.22, 0.09);
-    const lowerArmHE = new CANNON.Vec3(0.08, 0.20, 0.08);
+    const upperArmHE = new CANNON.Vec3(0.11 * scale, 0.30 * scale, 0.11 * scale);
+    const lowerArmHE = new CANNON.Vec3(0.10 * scale, 0.28 * scale, 0.10 * scale);
 
     this._addPart('lUpperArm', new CANNON.Box(upperArmHE), upperArmHE,
-      new THREE.Vector3(p.x - 0.45, p.y + 1.55, p.z), 1.5, bc);
+      new THREE.Vector3(p.x - 0.62 * scale, p.y + 1.95 * scale, p.z), 1.5, bc);
     this._addPart('lLowerArm', new CANNON.Box(lowerArmHE), lowerArmHE,
-      new THREE.Vector3(p.x - 0.45, p.y + 1.10, p.z), 1.0, bc);
+      new THREE.Vector3(p.x - 0.62 * scale, p.y + 1.35 * scale, p.z), 1.0, bc);
 
     this._addPart('rUpperArm', new CANNON.Box(upperArmHE), upperArmHE,
-      new THREE.Vector3(p.x + 0.45, p.y + 1.55, p.z), 1.5, bc);
+      new THREE.Vector3(p.x + 0.62 * scale, p.y + 1.95 * scale, p.z), 1.5, bc);
     this._addPart('rLowerArm', new CANNON.Box(lowerArmHE), lowerArmHE,
-      new THREE.Vector3(p.x + 0.45, p.y + 1.10, p.z), 1.0, bc);
+      new THREE.Vector3(p.x + 0.62 * scale, p.y + 1.35 * scale, p.z), 1.0, bc);
 
     // ---- Legs ----
-    const thighHE = new CANNON.Vec3(0.10, 0.28, 0.10);
-    const shinHE  = new CANNON.Vec3(0.09, 0.26, 0.09);
+    const thighHE = new CANNON.Vec3(0.13 * scale, 0.38 * scale, 0.13 * scale);
+    const shinHE  = new CANNON.Vec3(0.12 * scale, 0.36 * scale, 0.12 * scale);
 
     this._addPart('lThigh', new CANNON.Box(thighHE), thighHE,
-      new THREE.Vector3(p.x - 0.15, p.y + 0.55, p.z), 2.5, bc);
+      new THREE.Vector3(p.x - 0.18 * scale, p.y + 0.72 * scale, p.z), 2.5, bc);
     this._addPart('lShin', new CANNON.Box(shinHE), shinHE,
-      new THREE.Vector3(p.x - 0.15, p.y + 0.05, p.z), 1.8, bc);
+      new THREE.Vector3(p.x - 0.18 * scale, p.y + 0.06 * scale, p.z), 1.8, bc);
 
     this._addPart('rThigh', new CANNON.Box(thighHE), thighHE,
-      new THREE.Vector3(p.x + 0.15, p.y + 0.55, p.z), 2.5, bc);
+      new THREE.Vector3(p.x + 0.18 * scale, p.y + 0.72 * scale, p.z), 2.5, bc);
     this._addPart('rShin', new CANNON.Box(shinHE), shinHE,
-      new THREE.Vector3(p.x + 0.15, p.y + 0.05, p.z), 1.8, bc);
+      new THREE.Vector3(p.x + 0.18 * scale, p.y + 0.06 * scale, p.z), 1.8, bc);
 
     // ---- Constraints ----
     const Vec = (x, y, z) => new CANNON.Vec3(x, y, z);
@@ -229,6 +230,14 @@ export class Ragdoll {
       this.bodies.rThigh, this.bodies.rShin,
       Vec(0, -thighHE.y, 0), Vec(0,  shinHE.y, 0),
       Vec(1,0,0));
+
+    // simple humanoid face accents (eyes) for readability
+    const eyeGeo = new THREE.SphereGeometry(0.055 * scale, 8, 8);
+    const eyeMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    this.leftEye = new THREE.Mesh(eyeGeo, eyeMat);
+    this.rightEye = new THREE.Mesh(eyeGeo, eyeMat);
+    this.scene.add(this.leftEye);
+    this.scene.add(this.rightEye);
 
     // Default body posture forces — gentle upright torque on chest so the
     // character doesn't immediately face-plant. Disabled when "ragdolled"=true.
@@ -360,6 +369,15 @@ export class Ragdoll {
       p.mesh.position.copy(p.body.position);
       p.mesh.quaternion.copy(p.body.quaternion);
     }
+    if (this.leftEye && this.rightEye) {
+      const h = this.bodies.head;
+      const l = new CANNON.Vec3(-0.08, 0.03, 0.22);
+      const r = new CANNON.Vec3(0.08, 0.03, 0.22);
+      const lw = h.pointToWorldFrame(l);
+      const rw = h.pointToWorldFrame(r);
+      this.leftEye.position.set(lw.x, lw.y, lw.z);
+      this.rightEye.position.set(rw.x, rw.y, rw.z);
+    }
   }
 
   /** AABB center for camera tracking. */
@@ -371,7 +389,7 @@ export class Ragdoll {
   /** Returns world position of right hand (sword anchor). */
   rightHandWorld(out = new THREE.Vector3()) {
     const b = this.bodies.rLowerArm;
-    out.set(b.position.x, b.position.y - 0.20, b.position.z);
+    out.set(b.position.x, b.position.y - 0.28, b.position.z);
     return out;
   }
 
@@ -383,6 +401,8 @@ export class Ragdoll {
       p.mesh.material.dispose();
     }
     Object.values(this.constraints).forEach((c) => this.world.removeConstraint(c));
+    if (this.leftEye) { this.scene.remove(this.leftEye); this.leftEye.geometry.dispose(); this.leftEye.material.dispose(); }
+    if (this.rightEye) { this.scene.remove(this.rightEye); this.rightEye.geometry.dispose(); this.rightEye.material.dispose(); }
     this.bodies = {}; this.meshes = {}; this.constraints = {}; this.joints = {}; this.parts = [];
   }
 }

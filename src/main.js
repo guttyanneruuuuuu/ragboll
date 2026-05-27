@@ -10,6 +10,7 @@ import { ScreenManager } from './ui/screens.js';
 import { Game } from './game/game.js';
 import { Net } from './net/net.js';
 import { Hud } from './ui/hud.js';
+import { CARD_LIBRARY, summarizeDeck } from './game/cards.js';
 import { Lobby } from './ui/lobby.js';
 
 class App {
@@ -36,6 +37,7 @@ class App {
     document.getElementById('cfg-sens').value = this.settings.sensitivity;
     document.getElementById('cfg-weapon').value = this.settings.weapon;
     document.getElementById('cfg-arena').value = this.settings.arena;
+    document.getElementById('cfg-camera').value = this.settings.cameraMode;
 
     // settings save
     const wire = (id, key, type='value', parse=v=>v) => {
@@ -51,6 +53,28 @@ class App {
     wire('cfg-sens', 'sensitivity', 'value', parseFloat);
     wire('cfg-weapon', 'weapon');
     wire('cfg-arena', 'arena');
+    wire('cfg-camera', 'cameraMode');
+
+    // card loadout UI
+    const cardHost = document.getElementById('card-loadout');
+    if (cardHost) {
+      const render = () => {
+        cardHost.innerHTML = CARD_LIBRARY.map((c) => {
+          const on = this.settings.deck?.includes(c.id);
+          return `<button class="card-chip ${on ? 'on' : ''}" data-card="${c.id}" title="${c.desc}">${c.name}</button>`;
+        }).join('');
+      };
+      render();
+      cardHost.addEventListener('click', (e) => {
+        const b = e.target.closest('[data-card]'); if (!b) return;
+        const id = b.dataset.card;
+        const deck = new Set(this.settings.deck || []);
+        if (deck.has(id)) deck.delete(id); else if (deck.size < 5) deck.add(id);
+        this.settings.deck = [...deck];
+        this.settings.save();
+        render();
+      });
+    }
 
     // Auto-join from URL hash (?join=ABCD1234)
     const params = new URLSearchParams(location.search);
@@ -108,6 +132,7 @@ class App {
         hud: this.hud,
         net: opts.mode.startsWith('online') ? this.net : null,
         mode: opts.mode,
+        cardMods: summarizeDeck(this.settings.deck || []),
         onLoadProgress: (p, msg) => setLoader(p, msg),
         onMatchEnd: (result) => this.showResult(result),
       });
