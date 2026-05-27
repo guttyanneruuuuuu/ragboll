@@ -36,6 +36,7 @@ class App {
     document.getElementById('cfg-sens').value = this.settings.sensitivity;
     document.getElementById('cfg-weapon').value = this.settings.weapon;
     document.getElementById('cfg-arena').value = this.settings.arena;
+    document.getElementById('cfg-camera').value = this.settings.cameraMode;
 
     // settings save
     const wire = (id, key, type='value', parse=v=>v) => {
@@ -51,6 +52,7 @@ class App {
     wire('cfg-sens', 'sensitivity', 'value', parseFloat);
     wire('cfg-weapon', 'weapon');
     wire('cfg-arena', 'arena');
+    wire('cfg-camera', 'cameraMode');
 
     // Auto-join from URL hash (?join=ABCD1234)
     const params = new URLSearchParams(location.search);
