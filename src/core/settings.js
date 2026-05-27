@@ -8,6 +8,8 @@ export class Settings {
     this.sensitivity = 1.0;
     this.weapon = 'katana';
     this.arena = 'arena';
+    this.cameraMode = 'portrait';
+    this.deck = ['iron_grip', 'heavy_edge', 'ring_runner'];
   }
   load() {
     try {
@@ -20,7 +22,7 @@ export class Settings {
       localStorage.setItem('ragblade.settings', JSON.stringify({
         sfx: this.sfx, bgm: this.bgm, vibrate: this.vibrate,
         quality: this.quality, sensitivity: this.sensitivity,
-        weapon: this.weapon, arena: this.arena,
+        weapon: this.weapon, arena: this.arena, cameraMode: this.cameraMode, deck: this.deck,
       }));
     } catch (_) {}
   }

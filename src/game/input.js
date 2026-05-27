@@ -24,6 +24,8 @@ export class InputManager {
     this._lastPointer = null;
     this._touchSwingId = null;
     this._touchMoveId = null;
+    this._touchUnifiedId = null;
+    this._touchUnifiedOrigin = null;
 
     this._bind();
   }
@@ -100,8 +102,62 @@ export class InputManager {
       stickEl.addEventListener('touchcancel', endMove);
     }
 
+    // portrait mobile: one-hand drag = move + swing simultaneously
+    const isUnifiedTouchMode = () => {
+      const coarse = window.matchMedia?.('(pointer: coarse)').matches;
+      return !!coarse && window.innerHeight > window.innerWidth;
+    };
+
+    this.canvas.addEventListener('touchstart', (e) => {
+      if (!isUnifiedTouchMode()) return;
+      if (this._touchUnifiedId != null) return;
+      const t = e.changedTouches[0];
+      this._touchUnifiedId = t.identifier;
+      this._touchUnifiedOrigin = { x: t.clientX, y: t.clientY };
+      this._lastPointer = { x: t.clientX, y: t.clientY };
+      this.swinging = true;
+      e.preventDefault();
+    }, { passive: false });
+
+    this.canvas.addEventListener('touchmove', (e) => {
+      if (!isUnifiedTouchMode()) return;
+      for (const t of e.changedTouches) {
+        if (t.identifier !== this._touchUnifiedId || !this._lastPointer || !this._touchUnifiedOrigin) continue;
+        const dx = t.clientX - this._lastPointer.x;
+        const dy = t.clientY - this._lastPointer.y;
+        this.swingDelta.x += dx * this.sensitivity;
+        this.swingDelta.y += dy * this.sensitivity;
+        this._lastPointer = { x: t.clientX, y: t.clientY };
+
+        // movement from drag vector relative to touch-start origin
+        const mdx = t.clientX - this._touchUnifiedOrigin.x;
+        const mdy = t.clientY - this._touchUnifiedOrigin.y;
+        const lim = 72;
+        const mag = Math.hypot(mdx, mdy);
+        const f = mag > lim ? lim / mag : 1;
+        this.move.x = (mdx * f) / lim;
+        this.move.y = (mdy * f) / lim;
+        e.preventDefault();
+      }
+    }, { passive: false });
+
+    const endUnified = (e) => {
+      if (!isUnifiedTouchMode()) return;
+      for (const t of e.changedTouches) {
+        if (t.identifier !== this._touchUnifiedId) continue;
+        this._touchUnifiedId = null;
+        this._touchUnifiedOrigin = null;
+        this._lastPointer = null;
+        this.swinging = false;
+        this.move.set(0, 0);
+      }
+    };
+    this.canvas.addEventListener('touchend', endUnified);
+    this.canvas.addEventListener('touchcancel', endUnified);
+
     // swing touch — right half of the screen
     this.canvas.addEventListener('touchstart', (e) => {
+      if (isUnifiedTouchMode()) return;
       for (const t of e.changedTouches) {
         if (t.clientX > window.innerWidth / 2 && this._touchSwingId == null) {
           this._touchSwingId = t.identifier;
@@ -112,6 +168,7 @@ export class InputManager {
       }
     }, { passive: false });
     this.canvas.addEventListener('touchmove', (e) => {
+      if (isUnifiedTouchMode()) return;
       for (const t of e.changedTouches) {
         if (t.identifier !== this._touchSwingId || !this._lastPointer) continue;
         const dx = t.clientX - this._lastPointer.x;
@@ -123,6 +180,7 @@ export class InputManager {
       }
     }, { passive: false });
     const endSwing = (e) => {
+      if (isUnifiedTouchMode()) return;
       for (const t of e.changedTouches) {
         if (t.identifier === this._touchSwingId) {
           this._touchSwingId = null;
