@@ -8,6 +8,7 @@ export class InputManager {
   constructor(canvas, opts = {}) {
     this.canvas = canvas;
     this.sensitivity = opts.sensitivity || 1.0;
+    this.oneHand = !!opts.oneHand;
 
     // movement (-1..1 each axis), x=right z=forward (camera relative)
     this.move = new THREE.Vector2(0, 0);
@@ -61,6 +62,45 @@ export class InputManager {
       if (e.button === 2) this.guarding = false;
     });
     this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+    // touch: one-hand mode = drag anywhere to swing + move
+    if (this.oneHand) {
+      this.canvas.addEventListener('touchstart', (e) => {
+        if (this._touchSwingId != null) return;
+        const t = e.changedTouches[0];
+        this._touchSwingId = t.identifier;
+        this.swinging = true;
+        this._lastPointer = { x: t.clientX, y: t.clientY };
+        e.preventDefault();
+      }, { passive: false });
+      this.canvas.addEventListener('touchmove', (e) => {
+        for (const t of e.changedTouches) {
+          if (t.identifier !== this._touchSwingId || !this._lastPointer) continue;
+          const dx = t.clientX - this._lastPointer.x;
+          const dy = t.clientY - this._lastPointer.y;
+          this.swingDelta.x += dx * this.sensitivity;
+          this.swingDelta.y += dy * this.sensitivity;
+          // same drag controls movement (low gain for precision)
+          this.move.x = Math.max(-1, Math.min(1, dx / 45));
+          this.move.y = Math.max(-1, Math.min(1, dy / 45));
+          this._lastPointer = { x: t.clientX, y: t.clientY };
+          e.preventDefault();
+        }
+      }, { passive: false });
+      const endAny = (e) => {
+        for (const t of e.changedTouches) {
+          if (t.identifier === this._touchSwingId) {
+            this._touchSwingId = null;
+            this.swinging = false;
+            this._lastPointer = null;
+            this.move.set(0, 0);
+          }
+        }
+      };
+      this.canvas.addEventListener('touchend', endAny);
+      this.canvas.addEventListener('touchcancel', endAny);
+      return;
+    }
 
     // touch: left half = move (virtual joystick), right half = swing
     const stickEl = document.getElementById('virtual-stick');
