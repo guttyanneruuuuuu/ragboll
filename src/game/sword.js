@@ -1,244 +1,337 @@
 // ============================================================
-// Sword — a kinematic blade that swings to match the player's
-// pointer/swipe input. Generates hit events when the tip's trail
-// intersects an opponent body part.
+// sword.js — Weapon attached to a ragdoll's right hand.
+//
+// Visual geometry is procedurally built from the weapon preset
+// in `src/data/weapons.js`. A circular buffer of recent blade
+// tip positions is used to test swing-vs-ragdoll collision and
+// to render the colourful trail.
 // ============================================================
+
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
+import { clamp } from '../util/math.js';
+import { getWeapon } from '../data/weapons.js';
+
+const TRAIL_SAMPLES = 18;
 
 export class Sword {
-  /**
-   * @param {object} opts
-   * @param {THREE.Scene} opts.scene
-   * @param {CANNON.World} opts.world
-   * @param {string} opts.owner   - player id ('p1' | 'p2')
-   * @param {number} opts.color   - hex blade color
-   */
   constructor(opts) {
     this.scene = opts.scene;
     this.world = opts.world;
-    this.owner = opts.owner;
-    this.color = opts.color ?? 0xeeeeff;
+    this.owner = opts.owner;            // Ragdoll instance
+    this.weapon = opts.weapon || getWeapon('katana');
+    this.modifiers = opts.modifiers || {};
+    this.trailColor = opts.trailColor || this.weapon.trail;
+    this.dropped = false;
 
-    this.length = 1.4;      // blade length
-    this.handleLen = 0.25;
-    this.totalLen = this.length + this.handleLen;
-    this.damageMul = 1.0;
+    const length = this.weapon.length * (1 + (this.modifiers.weaponLength || 0));
+    const mass   = this.weapon.mass   * (1 + (this.modifiers.weaponMass   || 0));
+    this.length = length;
+    this.mass   = mass;
+    this.blade  = this.weapon.blade  * (1 + (this.modifiers.weaponLength || 0));
+    this.handleLength = length - this.blade;
+    this.tipOffset = length / 2;
+    this.swingForceScale = (this.weapon.swingForce || 1) * (1 + (this.modifiers.swingForce || 0));
+    this.guardBreak = clamp((this.weapon.guardBreak || 0) + (this.modifiers.guardBreak || 0), 0, 1);
+    this.crit       = clamp((this.weapon.crit       || 0) + (this.modifiers.critChance || 0), 0, 1);
+    this.bleed      = (this.weapon.bleed || 0) + (this.modifiers.bleed || 0);
+    this.jointBreak = (this.weapon.jointBreak || 1) * (1 + (this.modifiers.jointBreak || 0));
 
-    this._build();
+    this._buildMesh();
+    this._buildBody();
     this._buildTrail();
-
-    // swing state
-    this.swingActive = false;
-    this.swingSpeed = 0;      // magnitude
-    this.lastTipPos = new THREE.Vector3();
-    this.tipPos = new THREE.Vector3();
-    this.hitCooldown = new Map(); // partName -> timestamp
   }
 
-  setPreset(name) {
-    const preset = {
-      katana: { len: 1.4, damage: 1.0, trail: 1.0 },
-      greatsword: { len: 1.7, damage: 1.3, trail: 1.2 },
-      spear: { len: 1.95, damage: 0.9, trail: 0.8 },
-    }[name] ?? { len: 1.4, damage: 1.0, trail: 1.0 };
-    this.length = preset.len;
-    this.totalLen = this.length + this.handleLen;
-    this.damageMul = preset.damage;
-    this.trailMesh.scale.setScalar(preset.trail);
-    this.mesh.children[0].scale.y = this.length / 1.4;
-    this.mesh.children[0].position.y = this.length / 2;
-  }
-
-  _build() {
+  _buildMesh() {
     const group = new THREE.Group();
-    // blade
-    const bladeGeo = new THREE.BoxGeometry(0.06, this.length, 0.015);
     const bladeMat = new THREE.MeshStandardMaterial({
-      color: this.color,
-      emissive: this.color,
-      emissiveIntensity: 0.6,
-      metalness: 0.9,
-      roughness: 0.15,
+      color: 0xeeeeff, metalness: 0.9, roughness: 0.18, emissive: 0x222244, emissiveIntensity: 0.3,
     });
-    const blade = new THREE.Mesh(bladeGeo, bladeMat);
-    blade.position.y = this.length / 2;
-    group.add(blade);
+    const handleMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.4, metalness: 0.2 });
+    const guardMat  = new THREE.MeshStandardMaterial({ color: this.weapon.spark || 0xffd966, metalness: 0.7, roughness: 0.3 });
 
-    // guard
-    const guardGeo = new THREE.BoxGeometry(0.22, 0.04, 0.06);
-    const guardMat = new THREE.MeshStandardMaterial({ color: 0xc0a060, metalness: 0.7, roughness: 0.3 });
-    const guard = new THREE.Mesh(guardGeo, guardMat);
-    guard.position.y = 0;
-    group.add(guard);
-
-    // handle
-    const handleGeo = new THREE.CylinderGeometry(0.03, 0.03, this.handleLen, 8);
-    const handleMat = new THREE.MeshStandardMaterial({ color: 0x402010 });
-    const handle = new THREE.Mesh(handleGeo, handleMat);
-    handle.position.y = -this.handleLen / 2;
+    // Handle
+    const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, this.handleLength, 12), handleMat);
+    handle.position.y = -this.length / 2 + this.handleLength / 2;
     group.add(handle);
 
-    // pommel
-    const pommelGeo = new THREE.SphereGeometry(0.04, 8, 6);
-    const pommel = new THREE.Mesh(pommelGeo, guardMat);
-    pommel.position.y = -this.handleLen;
+    // Guard (cross-piece)
+    const guard = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.05, 0.05), guardMat);
+    guard.position.y = -this.length / 2 + this.handleLength;
+    group.add(guard);
+
+    // Blade — shape depends on weapon model hint.
+    const hint = this.weapon.model && this.weapon.model.type || 'katana';
+    const bladeMesh = this._buildBladeMesh(hint, bladeMat);
+    bladeMesh.position.y = -this.length / 2 + this.handleLength + this.blade / 2;
+    group.add(bladeMesh);
+
+    // Pommel
+    const pommel = new THREE.Mesh(new THREE.SphereGeometry(0.04, 10, 8), guardMat);
+    pommel.position.y = -this.length / 2;
     group.add(pommel);
 
     this.mesh = group;
-    this.scene.add(group);
+    this.scene.add(this.mesh);
+  }
+
+  _buildBladeMesh(kind, mat) {
+    const blade = this.blade;
+    const w = this.weapon.width;
+    switch (kind) {
+      case 'greatsword':
+        return new THREE.Mesh(new THREE.BoxGeometry(w * 1.4, blade, 0.015), mat);
+      case 'rapier':
+        return new THREE.Mesh(new THREE.BoxGeometry(w * 0.6, blade, 0.012), mat);
+      case 'twin':
+        return new THREE.Mesh(new THREE.BoxGeometry(w * 0.9, blade, 0.012), mat);
+      case 'axe': {
+        const g = new THREE.Group();
+        const haft = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, blade, 10), mat);
+        const head = new THREE.Mesh(new THREE.BoxGeometry(w * 2.0, w * 1.4, 0.04), mat);
+        head.position.y = blade / 2 - w * 0.7;
+        g.add(haft, head);
+        return g;
+      }
+      case 'spear': {
+        const g = new THREE.Group();
+        const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.022, blade * 0.85, 10), mat);
+        const tip   = new THREE.Mesh(new THREE.ConeGeometry(0.06, blade * 0.15, 12), mat);
+        tip.position.y = blade / 2 + (blade * 0.15) / 2 - blade * 0.075;
+        g.add(shaft, tip);
+        return g;
+      }
+      case 'scythe': {
+        const g = new THREE.Group();
+        const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.022, blade * 0.9, 10), mat);
+        const head  = new THREE.Mesh(new THREE.TorusGeometry(blade * 0.32, 0.014, 6, 18, Math.PI * 0.9), mat);
+        head.position.y = blade / 2 - blade * 0.15;
+        head.rotation.z = -Math.PI / 2;
+        g.add(shaft, head);
+        return g;
+      }
+      case 'hammer': {
+        const g = new THREE.Group();
+        const haft = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.024, blade, 10), mat);
+        const head = new THREE.Mesh(new THREE.BoxGeometry(w * 1.8, w * 1.6, w * 1.6), mat);
+        head.position.y = blade / 2 - w * 0.8;
+        g.add(haft, head);
+        return g;
+      }
+      case 'naginata': {
+        const g = new THREE.Group();
+        const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.022, blade * 0.85, 10), mat);
+        const head  = new THREE.Mesh(new THREE.BoxGeometry(w * 0.8, blade * 0.25, 0.012), mat);
+        head.position.y = blade / 2 - blade * 0.12;
+        g.add(shaft, head);
+        return g;
+      }
+      case 'plasma': {
+        const g = new THREE.Group();
+        const core = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.015, 0.015, blade, 10),
+          new THREE.MeshBasicMaterial({ color: this.weapon.trail || 0x33ffff }),
+        );
+        const glow = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.045, 0.045, blade, 10),
+          new THREE.MeshBasicMaterial({
+            color: this.weapon.spark || 0x99ffff,
+            transparent: true,
+            opacity: 0.35,
+          }),
+        );
+        g.add(core, glow);
+        return g;
+      }
+      case 'estoc':
+        return new THREE.Mesh(new THREE.BoxGeometry(w * 0.5, blade, 0.01), mat);
+      case 'short':
+      default:
+        return new THREE.Mesh(new THREE.BoxGeometry(w, blade, 0.012), mat);
+    }
+  }
+
+  _buildBody() {
+    const body = new CANNON.Body({ mass: this.mass });
+    const half = new CANNON.Vec3(0.05, this.length / 2, 0.05);
+    body.addShape(new CANNON.Box(half));
+    body.linearDamping  = 0.2;
+    body.angularDamping = 0.2;
+    body.allowSleep = false;
+    body.collisionFilterGroup = 2;
+    body.userData = { sword: this };
+    const hand = this.owner.bodies.get('forearmR');
+    if (hand) {
+      body.position.copy(hand.position);
+      body.position.y -= 0.1;
+    }
+    this.world.addBody(body);
+    this.body = body;
+
+    // Attach to the right forearm with a stiff cone-twist so the
+    // sword "follows" the hand but can still rotate.
+    const constraint = new CANNON.PointToPointConstraint(
+      hand, new CANNON.Vec3(0, -0.18, 0.04),
+      body, new CANNON.Vec3(0, this.length / 2 - 0.04, 0),
+    );
+    constraint.collideConnected = false;
+    this.world.addConstraint(constraint);
+    this.constraint = constraint;
+
+    const guideConstraint = new CANNON.PointToPointConstraint(
+      hand, new CANNON.Vec3(0, -0.28, 0.04),
+      body, new CANNON.Vec3(0, this.length / 2 - 0.18, 0),
+    );
+    guideConstraint.collideConnected = false;
+    this.world.addConstraint(guideConstraint);
+    this.guideConstraint = guideConstraint;
   }
 
   _buildTrail() {
-    // Glowing trail behind the blade tip — implemented as a tapered
-    // ribbon (BufferGeometry that we update each frame).
-    this.trailLen = 12;
-    const positions = new Float32Array(this.trailLen * 2 * 3); // 2 verts per segment
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    const idx = [];
-    for (let i = 0; i < this.trailLen - 1; i++) {
-      const a = i * 2, b = i * 2 + 1, c = (i + 1) * 2, d = (i + 1) * 2 + 1;
-      idx.push(a, c, b,  b, c, d);
-    }
-    geo.setIndex(idx);
-    const mat = new THREE.MeshBasicMaterial({
-      color: this.color,
+    this.tipHistory = new Array(TRAIL_SAMPLES);
+    for (let i = 0; i < TRAIL_SAMPLES; i++) this.tipHistory[i] = new THREE.Vector3();
+    this.tipIndex = 0;
+    this.tipFilled = 0;
+    const geom = new THREE.BufferGeometry();
+    const positions = new Float32Array(TRAIL_SAMPLES * 3);
+    geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    const mat = new THREE.LineBasicMaterial({
+      color: this.trailColor,
+      linewidth: 3,
       transparent: true,
-      opacity: 0.65,
-      side: THREE.DoubleSide,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending,
+      opacity: 0.85,
     });
-    this.trailMesh = new THREE.Mesh(geo, mat);
-    this.trailMesh.frustumCulled = false;
-    this.scene.add(this.trailMesh);
-
-    this.trailHistory = []; // {pos:Vec3, perp:Vec3, age}
+    const line = new THREE.Line(geom, mat);
+    line.frustumCulled = false;
+    this.scene.add(line);
+    this.trail = line;
   }
 
-  /**
-   * Position the sword from owner's right hand outward in a target dir.
-   * @param {THREE.Vector3} handWorld
-   * @param {THREE.Vector3} aim - world-space direction the player wants the tip to go
-   * @param {number} progress  - 0..1 swing progress (rest -> extended)
-   */
-  setPose(handWorld, aim, progress = 0.5) {
-    // base position = right hand
-    this.mesh.position.copy(handWorld);
-    // orient sword so its +Y aligns with aim direction
-    const dir = aim.clone().normalize();
-    const up = new THREE.Vector3(0, 1, 0);
-    const q = new THREE.Quaternion().setFromUnitVectors(up, dir);
-    this.mesh.quaternion.copy(q);
+  /** Compute the current world-space tip position. */
+  tipPosition() {
+    const local = new THREE.Vector3(0, this.length / 2, 0);
+    const out = new THREE.Vector3();
+    // approximate: use cannon-es position + quaternion
+    out.copy(this.body.position);
+    const q = this.body.quaternion;
+    const v = new THREE.Vector3(local.x, local.y, local.z);
+    v.applyQuaternion(new THREE.Quaternion(q.x, q.y, q.z, q.w));
+    out.add(v);
+    return out;
+  }
 
-    // compute tip
-    this.lastTipPos.copy(this.tipPos);
-    this.tipPos.copy(handWorld).addScaledVector(dir, this.totalLen);
+  /** Compute the world-space handle (base) position. */
+  basePosition() {
+    const local = new THREE.Vector3(0, -this.length / 2, 0);
+    const out = new THREE.Vector3();
+    out.copy(this.body.position);
+    const q = this.body.quaternion;
+    const v = new THREE.Vector3(local.x, local.y, local.z);
+    v.applyQuaternion(new THREE.Quaternion(q.x, q.y, q.z, q.w));
+    out.add(v);
+    return out;
+  }
 
-    // swing speed (used as damage multiplier)
-    this.swingSpeed = this.tipPos.distanceTo(this.lastTipPos);
-
-    // push trail point
-    if (this.swingActive) {
-      const perpAxis = new THREE.Vector3().crossVectors(dir, up).normalize().multiplyScalar(0.05);
-      this.trailHistory.unshift({
-        pos: this.tipPos.clone(),
-        perp: perpAxis,
-        age: 0,
-      });
-      if (this.trailHistory.length > this.trailLen) this.trailHistory.pop();
-    } else {
-      // fade out
-      if (this.trailHistory.length) this.trailHistory.pop();
+  /** Update trail buffer and mesh. */
+  updateTrail() {
+    const tip = this.tipPosition();
+    this.tipHistory[this.tipIndex].copy(tip);
+    this.tipIndex = (this.tipIndex + 1) % TRAIL_SAMPLES;
+    this.tipFilled = Math.min(this.tipFilled + 1, TRAIL_SAMPLES);
+    const arr = this.trail.geometry.attributes.position.array;
+    for (let i = 0; i < TRAIL_SAMPLES; i++) {
+      const sample = this.tipHistory[(this.tipIndex + i) % TRAIL_SAMPLES];
+      arr[i*3+0] = sample.x;
+      arr[i*3+1] = sample.y;
+      arr[i*3+2] = sample.z;
     }
-    this._updateTrailGeometry();
+    this.trail.geometry.attributes.position.needsUpdate = true;
+    this.trail.geometry.computeBoundingSphere();
   }
 
-  _updateTrailGeometry() {
-    const arr = this.trailMesh.geometry.attributes.position.array;
-    for (let i = 0; i < this.trailLen; i++) {
-      const p = this.trailHistory[i];
-      if (!p) {
-        // collapse to origin
-        arr[i*6+0] = arr[i*6+3] = 0;
-        arr[i*6+1] = arr[i*6+4] = -1000;
-        arr[i*6+2] = arr[i*6+5] = 0;
-        continue;
-      }
-      const taper = 1 - i / this.trailLen;
-      const ox = p.perp.x * taper;
-      const oy = p.perp.y * taper;
-      const oz = p.perp.z * taper;
-      arr[i*6+0] = p.pos.x + ox;
-      arr[i*6+1] = p.pos.y + oy;
-      arr[i*6+2] = p.pos.z + oz;
-      arr[i*6+3] = p.pos.x - ox;
-      arr[i*6+4] = p.pos.y - oy;
-      arr[i*6+5] = p.pos.z - oz;
+  /** Sync the rendered group to the physics body. */
+  sync() {
+    if (!this.mesh) return;
+    this.mesh.position.copy(this.body.position);
+    this.mesh.quaternion.copy(this.body.quaternion);
+    this.updateTrail();
+  }
+
+  /** Apply a swing impulse onto the sword body. */
+  swing(direction, power) {
+    if (!this.body || this.dropped) return;
+    const strength = power * this.swingForceScale * 28;
+    this.body.applyImpulse(
+      new CANNON.Vec3(direction.x * strength, direction.y * strength, direction.z * strength),
+      new CANNON.Vec3(0, this.length / 2 - 0.1, 0),
+    );
+    // Add torque so the blade rotates instead of just translating.
+    const torque = new CANNON.Vec3(direction.z, 0.6, -direction.x);
+    torque.scale(strength * 0.4, torque);
+    this.body.angularVelocity.vadd(torque, this.body.angularVelocity);
+  }
+
+  /** Compute the linear velocity at the tip. */
+  tipVelocity() {
+    const lv = this.body.velocity;
+    const av = this.body.angularVelocity;
+    // r = tip relative to centre
+    const r = new CANNON.Vec3(0, this.length / 2, 0);
+    const q = this.body.quaternion;
+    q.vmult(r, r);
+    const cross = new CANNON.Vec3();
+    av.cross(r, cross);
+    return { x: lv.x + cross.x, y: lv.y + cross.y, z: lv.z + cross.z };
+  }
+
+  /** Force the sword to drop (player loses grip). */
+  drop() {
+    if (this.dropped) return;
+    if (this.constraint) {
+      try { this.world.removeConstraint(this.constraint); } catch (_err) { /* ignore */ }
+      this.constraint = null;
     }
-    this.trailMesh.geometry.attributes.position.needsUpdate = true;
-    this.trailMesh.material.opacity = this.swingActive ? 0.7 : Math.max(0, this.trailMesh.material.opacity - 0.05);
-  }
-
-  /** Test if blade segment hits any body in `targets` (Ragdoll[]). */
-  testHits(targets, now) {
-    const hits = [];
-    if (this.swingSpeed < 0.02) return hits;
-
-    // Segment from tip back to hand position along the blade
-    const tip = this.tipPos;
-    const last = this.lastTipPos;
-    const swept = new THREE.Vector3().subVectors(tip, last);
-    const sweptLen = swept.length();
-    if (sweptLen < 0.001) return hits;
-
-    for (const t of targets) {
-      if (!t.alive) continue;
-      for (const part of t.parts) {
-        // simple sphere hit test using part's halfExtents approx radius
-        const b = part.body;
-        const p = b.position;
-        const partPos = new THREE.Vector3(p.x, p.y, p.z);
-        // radius: heuristic from shape bounds
-        let r = 0.2;
-        const shape = b.shapes[0];
-        if (shape instanceof CANNON.Sphere) r = shape.radius;
-        else if (shape instanceof CANNON.Box) r = Math.max(shape.halfExtents.x, shape.halfExtents.y, shape.halfExtents.z) * 1.05;
-
-        // distance from part center to blade segment
-        const ab = swept;
-        const ap = new THREE.Vector3().subVectors(partPos, last);
-        const t_ = Math.max(0, Math.min(1, ap.dot(ab) / (sweptLen * sweptLen)));
-        const proj = new THREE.Vector3().copy(last).addScaledVector(ab, t_);
-        const dist = proj.distanceTo(partPos);
-        if (dist < r + 0.05) {
-          // cooldown
-          const k = `${t.name}:${part.name}`;
-          const last_t = this.hitCooldown.get(k) || 0;
-          if (now - last_t < 200) continue;
-          this.hitCooldown.set(k, now);
-          // damage proportional to swing speed
-          const speedKmh = this.swingSpeed * 60; // arbitrary scale
-          const dmg = Math.min(45, 8 + speedKmh * 1.5) * this.damageMul;
-          hits.push({
-            target: t,
-            partName: part.name,
-            point: proj,
-            dir: new THREE.Vector3().copy(ab).normalize(),
-            damage: dmg,
-          });
-        }
-      }
+    if (this.guideConstraint) {
+      try { this.world.removeConstraint(this.guideConstraint); } catch (_err) { /* ignore */ }
+      this.guideConstraint = null;
     }
-    return hits;
+    this.dropped = true;
   }
 
+  /** Pick the sword back up (used by AI / cards). */
+  pickup() {
+    if (!this.dropped) return;
+    const hand = this.owner.bodies.get('forearmR');
+    if (!hand) return;
+    const constraint = new CANNON.PointToPointConstraint(
+      hand, new CANNON.Vec3(0, -0.18, 0.04),
+      this.body, new CANNON.Vec3(0, this.length / 2 - 0.04, 0),
+    );
+    constraint.collideConnected = false;
+    this.world.addConstraint(constraint);
+    this.constraint = constraint;
+    this.dropped = false;
+  }
+
+  /** Dispose physics + render resources. */
   dispose() {
-    this.scene.remove(this.mesh);
-    this.mesh.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); });
-    this.scene.remove(this.trailMesh);
-    this.trailMesh.geometry.dispose();
-    this.trailMesh.material.dispose();
+    if (this.constraint) try { this.world.removeConstraint(this.constraint); } catch (_e) {}
+    if (this.guideConstraint) try { this.world.removeConstraint(this.guideConstraint); } catch (_e) {}
+    if (this.body) try { this.world.removeBody(this.body); } catch (_e) {}
+    if (this.mesh) {
+      this.scene.remove(this.mesh);
+      this.mesh.traverse(obj => {
+        if (obj.geometry) obj.geometry.dispose();
+        if (obj.material) {
+          const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+          for (const m of mats) m.dispose && m.dispose();
+        }
+      });
+    }
+    if (this.trail) {
+      this.scene.remove(this.trail);
+      this.trail.geometry.dispose();
+      this.trail.material.dispose();
+    }
   }
 }
