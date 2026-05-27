@@ -81,6 +81,22 @@
         <span>🎯 カメラ感度</span>
         <input type="range" id="cfg-sens" min="0.2" max="2" step="0.05" value="1" />
       </label>
+      <label class="setting">
+        <span>🗡 武器プリセット</span>
+        <select id="cfg-weapon">
+          <option value="katana" selected>刀 (標準)</option>
+          <option value="greatsword">大剣 (重い一撃)</option>
+          <option value="spear">槍 (長リーチ)</option>
+        </select>
+      </label>
+      <label class="setting">
+        <span>🌋 ステージ</span>
+        <select id="cfg-arena">
+          <option value="arena" selected>ネオンアリーナ</option>
+          <option value="ringout">リングアウト</option>
+          <option value="hazard">回転刃ハザード</option>
+        </select>
+      </label>
     </div>
     <button class="btn btn-secondary" data-action="back-to-title">← 戻る</button>
   </div>
