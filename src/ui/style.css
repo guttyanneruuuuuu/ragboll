@@ -1,10 +1,10 @@
 /* ========= RAGBLADE ARENA — Neon UI ========= */
 :root {
-  --bg: #0a0a0f;
-  --bg-2: #1a0a18;
-  --accent: #ff3344;
-  --accent-2: #ffcc33;
-  --accent-3: #33ffee;
+  --bg: #6fb7ff;
+  --bg-2: #3c6c9a;
+  --accent: #ffb300;
+  --accent-2: #ffd95a;
+  --accent-3: #8cff6b;
   --ink: #f0f0f8;
   --muted: #8a8aa0;
   --panel: rgba(20, 10, 25, 0.85);
@@ -42,12 +42,7 @@ html, body {
 }
 
 /* ========= Title ========= */
-#title-screen {
-  background:
-    radial-gradient(circle at 50% 30%, rgba(255,51,68,0.25), transparent 60%),
-    radial-gradient(circle at 80% 80%, rgba(51,238,238,0.15), transparent 60%),
-    var(--bg);
-}
+#title-screen { background: linear-gradient(180deg,#8fcbff 0%,#77b8f3 45%,#5ca1e8 100%); }
 .title-logo { text-align: center; margin-bottom: 30px; }
 .logo-main {
   font-size: clamp(40px, 10vw, 96px);
@@ -332,3 +327,5 @@ html, body {
     z-index: 999;
   }
 }
+
+.card-loadout{display:flex;flex-wrap:wrap;gap:8px}.card-chip{border:1px solid rgba(255,255,255,.5);background:rgba(0,0,0,.2);color:#fff;padding:6px 9px;border-radius:999px;font-size:12px;cursor:pointer}.card-chip.on{background:linear-gradient(135deg,#ffd95a,#ff9f1a);color:#222;font-weight:700;border-color:#fff}

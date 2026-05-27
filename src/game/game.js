@@ -24,6 +24,7 @@ export class Game {
     this.mode      = opts.mode;
     this.onLoadProgress = opts.onLoadProgress || (() => {});
     this.onMatchEnd     = opts.onMatchEnd || (() => {});
+    this.cardMods = opts.cardMods || {};
     this.running = false;
     this.paused = false;
 
@@ -52,8 +53,10 @@ export class Game {
     this.scene.background = new THREE.Color(0x0a0a14);
     this.scene.fog = new THREE.Fog(0x0a0a14, 18, 60);
 
-    this.camera = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.1, 200);
-    this.camera.position.set(0, 7, 11);
+    const portraitLike = innerHeight > innerWidth;
+    const camFov = portraitLike ? 50 : 60;
+    this.camera = new THREE.PerspectiveCamera(camFov, innerWidth/innerHeight, 0.1, 200);
+    this.camera.position.set(0, 7.2, 11.5);
     this.camera.lookAt(0, 1.2, 0);
 
     // ---------- lights ----------
@@ -120,6 +123,7 @@ export class Game {
     this.hud.setNames(p1Name, p2Name);
     this.hud.setHp(1, 1); this.hud.setHp(2, 1);
     this.hud.setRound(1);
+    this._cardReviveUsed = false;
 
     // Network wiring
     if (this.net && this.mode.startsWith('online')) this._wireNetwork();
@@ -131,8 +135,11 @@ export class Game {
     // Floor (disk arena)
     const radius = 9;
     const floorGeo = new THREE.CylinderGeometry(radius, radius, 0.6, 64);
+    const isMeadow = this.settings.arena === 'meadow';
     const floorMat = new THREE.MeshStandardMaterial({
-      color: 0x1c0e30, metalness: 0.35, roughness: 0.55,
+      color: isMeadow ? 0x4aa34a : 0x1c0e30,
+      metalness: isMeadow ? 0.02 : 0.35,
+      roughness: isMeadow ? 0.95 : 0.55,
     });
     const floor = new THREE.Mesh(floorGeo, floorMat);
     floor.position.y = -0.3;
@@ -148,7 +155,7 @@ export class Game {
     this.world.addBody(floorBody);
 
     // Neon rings
-    for (let i = 0; i < 3; i++) {
+    if (!isMeadow) for (let i = 0; i < 3; i++) {
       const r = radius - 0.5 - i*0.4;
       const ringGeo = new THREE.TorusGeometry(r, 0.05, 6, 96);
       const ringMat = new THREE.MeshBasicMaterial({
@@ -165,8 +172,21 @@ export class Game {
     // Ring-out wall (invisible cylinder so fighters fall off if pushed too far)
     // We skip — the arena is a disk over the floor with sloped edge handled by gameplay (out-of-bounds check).
 
-    // Bg deco — distant pillars
-    for (let i = 0; i < 8; i++) {
+    // Bg deco
+    if (isMeadow) {
+      this.scene.background = new THREE.Color(0x99c6ff);
+      this.scene.fog = new THREE.Fog(0x9cc9ff, 28, 120);
+      this.scene.add(new THREE.HemisphereLight(0xb8d8ff, 0x556644, 0.8));
+      const hillMat = new THREE.MeshStandardMaterial({ color: 0x5e8b45, roughness: 0.98, metalness: 0.0 });
+      for (let i = 0; i < 10; i++) {
+        const ang = i / 10 * Math.PI * 2;
+        const dist = 18 + (i % 3) * 3;
+        const h = 3 + (i % 4);
+        const hill = new THREE.Mesh(new THREE.ConeGeometry(4.5, h, 10), hillMat);
+        hill.position.set(Math.cos(ang) * dist, h * 0.45 - 0.4, Math.sin(ang) * dist);
+        this.scene.add(hill);
+      }
+    } else for (let i = 0; i < 8; i++) {
       const ang = i / 8 * Math.PI * 2;
       const px = Math.cos(ang) * 20;
       const pz = Math.sin(ang) * 20;
@@ -330,7 +350,7 @@ export class Game {
     // camera-relative movement on XZ plane (camera looks toward -Z)
     const dir = new THREE.Vector3(m.x, 0, m.y);
     if (dir.lengthSq() > 0.001) dir.normalize();
-    this.p1.walk(dir, 60);
+    this.p1.walk(dir, 60 * (1 + (this.cardMods.moveSpeed || 0)));
     if (this.input.consumeJump()) {
       if (this.p1.jump()) this.audio.whoosh(0.5);
     }
@@ -369,7 +389,7 @@ export class Game {
     }
 
     // hit test against opponent
-    const hits = this.s1.testHits([this.p2], performance.now());
+    const hits = this.s1.testHits([this.p2], performance.now()).map(h => ({...h, damage: this._buffDamage(h.damage)}));
     for (const h of hits) this._applyHit(1, h);
 
     sg.decay(dt);
@@ -507,15 +527,15 @@ export class Game {
     if (r.locked) this.audio.jointLock();
 
     // FX
-    this.fx.spawnSparks(hit.point, attackerIdx === 1 ? 0xffcc33 : 0x33ffee, Math.min(28, hit.damage));
+    this.fx.spawnSparks(hit.point, attackerIdx === 1 ? 0xffcc33 : 0x33ffee, Math.min(36, hit.damage * (1 + (this.cardMods.sparkMul || 0))));
     this.fx.triggerShake(Math.min(0.35, hit.damage * 0.012), 0.18);
     this.fx.triggerHitStop(Math.min(120, 40 + hit.damage * 2));
-    this.fx.vibrate([Math.min(80, 20 + hit.damage * 2)]);
+    this.fx.vibrate([Math.min(100, (20 + hit.damage * 2) * (1 + (this.cardMods.vibeMul || 0)))]);
 
     // KO / lethal hit
     if (!hit.target.alive && !this._ended) {
       this._ended = true;
-      this.fx.triggerSlowMo(0.2, 1200);
+      this.fx.triggerSlowMo(0.2, 1200 + (this.cardMods.koSlowmoMs || 0));
       this.fx.vibrate([60, 40, 100]);
       this.audio.fanfare();
       const victory = (hit.target === this.p2 && attackerIdx === 1) || (hit.target === this.p1 && attackerIdx === 2 && this.mode === 'online-joiner');
@@ -545,7 +565,7 @@ export class Game {
     const checkOut = (rag, who) => {
       const p = rag.bodies.pelvis.position;
       const dist = Math.hypot(p.x, p.z);
-      const ringRadius = this.settings.arena === 'ringout' ? 7.4 : 9.2;
+      const ringRadius = (this.settings.arena === 'ringout' ? 7.4 : 9.2) + (this.cardMods.ringoutBonus || 0);
       if (dist > ringRadius || p.y < -3) {
         if (rag.alive) {
           rag.alive = false;
@@ -584,6 +604,14 @@ export class Game {
     }
   }
 
+
+  _buffDamage(base) {
+    let d = base * (1 + (this.cardMods.damageMul || 0));
+    if (this.p1.hp <= this.p1.maxHp * 0.3) d *= 1 + (this.cardMods.lowHpDamage || 0);
+    if (Math.random() < (this.cardMods.critChance || 0)) d *= 1.35;
+    return d;
+  }
+
   _updateMatchTimer(now) {
     const elapsed = (now - this.startTime) / 1000;
     const remaining = Math.max(0, 90 - elapsed);
@@ -603,16 +631,25 @@ export class Game {
   }
 
   _updateCamera(dt) {
-    // mid-point follow
     const a = new THREE.Vector3(), b = new THREE.Vector3();
     this.p1.centerPosition(a); this.p2.centerPosition(b);
     const mid = a.clone().add(b).multiplyScalar(0.5);
     const dist = a.distanceTo(b);
-    const target = new THREE.Vector3(mid.x * 0.4, mid.y + 3.5, Math.max(8, dist * 1.6) + 4);
-    this.fx._cameraBase.lerp(target, Math.min(1, dt * 2.5));
-    // when not shaking, keep camera at base
+
+    const portraitFixed = this.settings.cameraMode !== 'dynamic';
+    const isPortrait = innerHeight > innerWidth;
+
+    let target;
+    if (portraitFixed && isPortrait) {
+      // 画像のような縦画面・ほぼ固定アングル
+      target = new THREE.Vector3(mid.x * 0.12, 6.9, 10.8);
+    } else {
+      target = new THREE.Vector3(mid.x * 0.4, mid.y + 3.5, Math.max(8, dist * 1.6) + 4);
+    }
+
+    this.fx._cameraBase.lerp(target, Math.min(1, dt * (portraitFixed ? 1.4 : 2.5)));
     if (this.fx.shake.time <= 0) this.camera.position.copy(this.fx._cameraBase);
-    this.camera.lookAt(mid.x, 1.0, mid.z);
+    this.camera.lookAt(mid.x * (portraitFixed ? 0.25 : 1), portraitFixed ? 1.3 : 1.0, mid.z);
   }
 
   _render() {
