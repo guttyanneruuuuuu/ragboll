@@ -239,6 +239,11 @@ html, body {
 }
 #virtual-guard { bottom: calc(var(--safe-bot) + 24px); }
 #virtual-jump { bottom: calc(var(--safe-bot) + 100px); right: 100px; background: rgba(51,238,238,0.3); border-color: var(--accent-3); }
+body.one-hand-ui #virtual-stick,
+body.one-hand-ui #virtual-guard,
+body.one-hand-ui #virtual-jump {
+  display: none !important;
+}
 
 #pause-btn {
   position: fixed;
